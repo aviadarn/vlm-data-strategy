@@ -1,0 +1,28 @@
+{
+ "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+ "adapter": "runs/scored",
+ "split": "data/test.parquet",
+ "n": 2500,
+ "relaxed_accuracy": 0.8404,
+ "by_source": {
+  "human": {
+   "n": 1250,
+   "acc": 0.7392
+  },
+  "machine": {
+   "n": 1250,
+   "acc": 0.9416
+  }
+ },
+ "by_answer_type": {
+  "numeric": {
+   "n": 1915,
+   "acc": 0.848
+  },
+  "text": {
+   "n": 585,
+   "acc": 0.8154
+  }
+ },
+ "seconds": 803.4
+}

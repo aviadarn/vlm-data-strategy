@@ -1,0 +1,8 @@
+.venv/
+data/
+runs/
+__pycache__/
+*.pyc
+# the raw eval dumps are re-derivable from results/summaries/; keep the split versions
+results/*.eval.json
+arms.json
