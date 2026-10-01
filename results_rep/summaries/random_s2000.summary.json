@@ -1,0 +1,28 @@
+{
+ "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+ "adapter": "runs/random_s2000",
+ "split": "data/test.parquet",
+ "n": 2500,
+ "relaxed_accuracy": 0.8452,
+ "by_source": {
+  "human": {
+   "n": 1250,
+   "acc": 0.7424
+  },
+  "machine": {
+   "n": 1250,
+   "acc": 0.948
+  }
+ },
+ "by_answer_type": {
+  "numeric": {
+   "n": 1915,
+   "acc": 0.859
+  },
+  "text": {
+   "n": 585,
+   "acc": 0.8
+  }
+ },
+ "seconds": 664.5
+}

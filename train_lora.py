@@ -21,7 +21,8 @@ import numpy as np
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--arm", required=True, choices=["random", "human", "scored"])
+    ap.add_argument("--arm", required=True,
+                    choices=["random", "human", "scored", "coverage"])
     ap.add_argument("--arms-file", default="arms.json")
     ap.add_argument("--pool", default="data/train-*.parquet")
     ap.add_argument("--model", default="Qwen/Qwen2.5-VL-3B-Instruct")

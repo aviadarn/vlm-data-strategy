@@ -1,0 +1,12 @@
+{
+ "arm": "coverage",
+ "steps": 500,
+ "seed": 1000,
+ "lr": 0.0001,
+ "rank": 16,
+ "batch_size": 2,
+ "grad_accum": 4,
+ "n_examples": 4000,
+ "final_loss": 0.3405,
+ "minutes": 64.1
+}

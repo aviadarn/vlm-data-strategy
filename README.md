@@ -1,14 +1,16 @@
 # Does paying for human-annotated data beat taking it at random?
 
 A controlled data-strategy experiment on a vision-language model. At a fixed training
-budget, three ways of choosing which examples to train on, measured against a frozen
-held-out evaluation.
+budget, four ways of choosing which examples to train on, measured against a frozen
+held-out evaluation — then re-run on a second independent draw to see what survives.
 
-**Human-authored data wins by 1.7 points (p = 0.042). A label-free quality score that
-recovers human data at 1.51× base rate does *not* — it performs indistinguishably from
-random.** Provenance metadata has value that a cheap text heuristic cannot substitute for.
+**Human-authored data wins by ~1.6 points on two independent draws (p = 0.042 and
+0.082).** The effect is consistent; the significance is marginal, and the second draw does
+not clear 0.05. **A label-free quality score that recovers human data at 1.51× base rate
+does not help at all**, and neither does **selecting for coverage**, which finished below
+the random control.
 
-Total cost: **$1.81** of rented RTX 3090 time.
+Total cost: **$2.90** of rented RTX 3090 time, across two sessions.
 
 ## The question
 
@@ -38,6 +40,9 @@ Three arms:
 - **random** — 4,000 drawn from the pool as it is (26.2% human). The control.
 - **human** — 4,000 human-authored only. What a team buys when it decides human data is worth paying for.
 - **scored** — 4,000 ranked by an intrinsic quality score that never sees the source label.
+- **coverage** — 4,000 chosen for breadth of question form rather than quality: 4,000
+  distinct question templates against random's 2,859. Added after the first round, to test a
+  prediction this README made and got wrong.
 
 The third arm is the one worth building. If a cheap score computed from question and answer
 text alone can pick out the good examples, a vendor pipeline can gate on it without knowing
@@ -51,14 +56,38 @@ or trusting who produced each item.
 | random (control) | 0.8404 | 0.7344 | 0.9464 | 0.8486 | 0.8137 |
 | **human** | **0.8500** | **0.7536** | 0.9464 | **0.8595** | 0.8188 |
 | scored | 0.8404 | 0.7392 | 0.9416 | 0.8514 | 0.8112 |
+| coverage | 0.8368 | 0.7288 | 0.9448 | — | — |
 
-Paired McNemar against the random control, on the human-written slice (the two arms see the
+Paired McNemar against the random control, on the human-written slice (the arms see the
 identical frozen test set, so the comparison is paired rather than independent):
 
 | arm | gained | lost | delta | p |
 |---|---|---|---|---|
 | **human** | 59 | 38 | **+1.7 pts** | **0.042** |
 | scored | 51 | 46 | +0.4 pts | 0.685 |
+| coverage | 45 | 53 | −0.7 pts | 0.480 |
+
+### Does it replicate?
+
+The first version of this README said p = 0.042 was marginal and that a second seed should
+come before the claim carried weight. Here is that second seed — an independent subset draw
+*and* a different training seed, since the claim is about data selection and holding the
+draw fixed would only test optimiser noise. The new draws overlap the originals by 14%
+(random) and 54% (human), which is what the pool sizes predict.
+
+| draw | random | human | gap | gained | lost | p |
+|---|---|---|---|---|---|---|
+| seed 1000 | 0.7321 | 0.7492 | **+1.71 pts** | 59 | 38 | **0.042** |
+| seed 2000 | 0.7378 | 0.7533 | **+1.55 pts** | 63 | 44 | **0.082** |
+
+**The effect replicates. The significance claim does not.** Human data wins on both draws by
+a very similar margin, but the second draw lands at p = 0.082 and does not clear 0.05.
+
+The honest summary is *a consistent ~1.6-point advantage across two independent draws,
+individually marginal at p = 0.042 and 0.082* — a stronger statement about the effect than
+one seed could support, and a weaker one about the statistics than the original headline
+made. Two draws at this effect size are still not many; the direction is now well
+established and the magnitude is not.
 
 ### Read the slices, not the headline
 
@@ -89,16 +118,53 @@ The practical reading: **demand provenance metadata from data vendors rather tha
 it.** A heuristic that half-works as a classifier can still be worthless as a filter, and
 the classifier metric would have told you it was working.
 
+### Selecting for coverage fails too — against this README's own prediction
+
+The first version of this file said: *"a selection built for diversity rather than quality is
+the obvious next arm, and on a previous experiment in another modality it was diversity, not
+quality, that mattered."* That was a prediction, and it was wrong.
+
+In [the robot-demonstration experiment](https://github.com/aviadarn/so101-lerobot), curating
+by a quality score **halved** success, because "best" collapsed to "most alike" and the
+curated set covered far less of the state space. Selecting for coverage was the obvious
+remedy. So this round added a coverage arm that maximises breadth of question form:
+**4,000 distinct question templates against random's 2,859**, with a human share of 29%
+against random's 26%, so any gain would be breadth rather than human data sneaking in.
+
+| arm (human-written slice) | accuracy | 95% CI |
+|---|---|---|
+| human | 0.7536 | [0.729, 0.777] |
+| scored | 0.7392 | [0.714, 0.763] |
+| random (control) | 0.7344 | [0.709, 0.758] |
+| **coverage** | **0.7288** | [0.704, 0.753] |
+
+**Coverage finished last**, below the random control — gained 45, lost 53, **p = 0.480**.
+Indistinguishable from random, and certainly not better.
+
+So the finding does not transfer across modalities. Breadth of coverage mattered for robot
+demonstrations and does nothing for chart question answering. Possibly because 4,000 chart
+questions already cover the task's variation whichever way you draw them, while 50
+demonstrations of a physical task do not; possibly because question template is simply the
+wrong axis — chart identity would have been the better one, but ChartQA's parquet stores
+every image under a single path, so it is not recoverable. Either way, the generalisation
+this README reached for is not there.
+
 ## Caveats
 
-- **p = 0.042 is marginal, and this is one seed, one model, one task.** Suggestive, not
-  settled. A second seed costs about $0.50 and should come before the claim carries weight.
-- The effect is small in absolute terms: 1.7 points on 1,250 questions.
+- **Two draws, one model, one task.** The second seed has been run (see above) and the
+  effect held at ~1.6 points while p moved to 0.082. Two draws establish the direction, not
+  the magnitude.
+- The effect is small in absolute terms: ~1.6 points on 1,250 questions.
+- **The `near_dup` signal is weaker than described.** It keys on `(chart, question)` pairs,
+  but ChartQA's parquet stores every image under one path, so in practice it detected
+  duplicate *questions* only. This does not change any published number — the arms are
+  unchanged and hash-identical — but the scorer's docstring oversold what that signal
+  measures.
 - The paired test used 1,228 of 1,250 questions — 22 dropped because pairs are keyed on
   question text and exact duplicates collapse.
-- `scored` is not a coverage-maximising selection. A selection built for diversity rather
-  than quality is the obvious next arm, and on a previous experiment in another modality
-  it was diversity, not quality, that mattered.
+- Chart identity is the coverage axis worth testing and this dataset does not expose it.
+  Re-deriving it (image hashing over the decoded PNGs) would make a sharper coverage arm
+  than question template did.
 
 ## Two bugs worth naming
 
@@ -129,6 +195,11 @@ python train_lora.py --arm human --out runs/human --steps 500
 python eval_chartqa.py --model Qwen/Qwen2.5-VL-3B-Instruct \
     --adapter runs/human --out results/human.eval.json
 python compare_arms.py --runs results                    # Wilson intervals + paired McNemar
+
+# the replication draw and the coverage arm
+python select_arms.py --n 4000 --seed 2000 --out arms_seed2000.json
+python train_lora.py --arm coverage --arms-file arms_v2.json --out runs/coverage --seed 1000
+python train_lora.py --arm human --arms-file arms_seed2000.json --out runs/human_s2000 --seed 2000
 ```
 
 `eval_chartqa.py` and `compare_arms.py` both have unit tests for the parts that decide the

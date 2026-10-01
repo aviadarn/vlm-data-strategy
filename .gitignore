@@ -6,3 +6,6 @@ __pycache__/
 # the raw eval dumps are re-derivable from results/summaries/; keep the split versions
 results/*.eval.json
 arms.json
+results_rep/*.eval.json
+arms_v2.json
+arms_seed2000.json

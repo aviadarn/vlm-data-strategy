@@ -1,0 +1,55 @@
+{
+ "seed1000": {
+  "n_paired": 1228,
+  "control": 0.7321,
+  "arm": 0.7492,
+  "gap_pts": 1.71,
+  "gained": 59,
+  "lost": 38,
+  "p": 0.0423
+ },
+ "seed2000": {
+  "n_paired": 1228,
+  "control": 0.7378,
+  "arm": 0.7533,
+  "gap_pts": 1.55,
+  "gained": 63,
+  "lost": 44,
+  "p": 0.0818
+ },
+ "coverage_vs_random": {
+  "n_paired": 1228,
+  "control": 0.7321,
+  "arm": 0.7256,
+  "gap_pts": -0.65,
+  "gained": 45,
+  "lost": 53,
+  "p": 0.4795
+ },
+ "human_slice": {
+  "coverage": {
+   "acc": 0.7288,
+   "ci": [
+    0.7035,
+    0.7527
+   ],
+   "overall": 0.8368
+  },
+  "random_s2000": {
+   "acc": 0.7424,
+   "ci": [
+    0.7174,
+    0.7659
+   ],
+   "overall": 0.8452
+  },
+  "human_s2000": {
+   "acc": 0.7576,
+   "ci": [
+    0.7331,
+    0.7805
+   ],
+   "overall": 0.8508
+  }
+ }
+}

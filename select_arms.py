@@ -23,7 +23,10 @@ Signals, all intrinsic (nothing reads the eval, the outcome, or the source):
 
   templatedness   how much this question's 4-gram shape repeats across the pool; generated
                   data comes from a handful of templates and repeats heavily
-  near_dup        near-duplicate questions on the same chart
+  near_dup        near-duplicate questions. Intended as "the same question asked twice of
+                  the same chart", but ChartQA's parquet stores every image under one path,
+                  so chart identity is not recoverable and this detects duplicate questions
+                  only - weaker than the name suggests.
   q_specific      question length and presence of concrete referents
   answer_leak     whether the answer is copied verbatim from the question text
   degenerate      trivial or empty answers, single characters, placeholder text
@@ -74,7 +77,8 @@ def score_pool(df: pd.DataFrame) -> pd.DataFrame:
     # A template used by thousands of questions is a template; one used twice is a coincidence.
     df["templatedness"] = np.log1p(shapes.map(shape_freq).astype(float))
 
-    # Near-duplicate questions asked about the same chart.
+    # Near-duplicate questions. image_key is degenerate in this dataset (one path for every
+    # row), so this reduces to duplicate question text rather than per-chart duplication.
     key = df["image_key"].astype(str)
     dup = Counter(zip(key, q.str.lower()))
     df["near_dup"] = [dup[(k, qq)] - 1 for k, qq in zip(key, q.str.lower())]
@@ -119,6 +123,53 @@ def quality(df: pd.DataFrame) -> np.ndarray:
     return -(pen) + bonus
 
 
+def coverage_select(df: pd.DataFrame, n: int, rng: np.random.Generator) -> np.ndarray:
+    """Pick for breadth of question type rather than for quality.
+
+    The quality score rewards typicality, and on a previous experiment in another modality
+    that collapsed coverage and cost real performance. This arm does the opposite on the one
+    axis this pool actually exposes: the question's template shape, of which there are 14,973
+    across the pool while a random 4,000 touches only 2,859.
+
+    Round-robin over shapes, so every distinct shape contributes before any shape contributes
+    twice; within a shape, alternate numeric and text answers so breadth of question form does
+    not come at the cost of answer-type balance. Chart identity would be the better axis, but
+    ChartQA's parquet stores every image under one path, so it is not available here.
+    """
+    buckets: dict[str, list[int]] = {}
+    for row, sh, ans in zip(df["row"].values, df["shape"].values, df["answer"].values):
+        buckets.setdefault(sh, []).append(int(row))
+    numeric = dict(zip(df["row"].values, df["answer"].map(
+        lambda a: bool(re.fullmatch(r"-?[\d.,]+%?", str(a).strip()))).values))
+    for sh in buckets:
+        rows = buckets[sh]
+        rng.shuffle(rows)
+        # alternate answer types inside the bucket so early picks are not all numeric
+        num = [r for r in rows if numeric.get(r)]
+        txt = [r for r in rows if not numeric.get(r)]
+        inter = []
+        while num or txt:
+            if txt: inter.append(txt.pop())
+            if num: inter.append(num.pop())
+        buckets[sh] = inter
+
+    order = sorted(buckets)
+    rng.shuffle(order)
+    out: list[int] = []
+    depth = 0
+    while len(out) < n:
+        progressed = False
+        for sh in order:
+            if depth < len(buckets[sh]):
+                out.append(buckets[sh][depth]); progressed = True
+                if len(out) >= n:
+                    break
+        if not progressed:
+            break
+        depth += 1
+    return np.array(sorted(out[:n]))
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--pool", default="data/train-*.parquet")
@@ -143,6 +194,7 @@ def main() -> None:
 
     df = score_pool(df)
     df["quality"] = quality(df)
+    df["shape"] = df["query"].astype(str).map(shape)
 
     rng = np.random.default_rng(args.seed)
     if args.n > int(df.human.sum()):
@@ -157,6 +209,7 @@ def main() -> None:
         # from identical inputs.
         "scored": df.sort_values(["quality", "row"], ascending=[False, True],
                                  kind="stable")["row"].values[: args.n],
+        "coverage": coverage_select(df, args.n, np.random.default_rng(args.seed + 7)),
     }
 
     print(f"\n{'arm':<10}{'n':>6}{'% human':>10}{'mean quality':>14}{'mean templated':>16}")
